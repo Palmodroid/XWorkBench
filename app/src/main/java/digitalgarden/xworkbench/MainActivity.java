@@ -1,5 +1,8 @@
 package digitalgarden.xworkbench;
 
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
@@ -51,8 +54,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         ed5 = (EditText) findViewById(R.id.ed5);
         tx5 =(TextView) findViewById(R.id.tx5);
 
-        setTitles();
-
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -61,16 +62,163 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // https://stackoverflow.com/questions/41407811/android-vectordrawables-usesupportlibrary-true-is-stopping-app
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener( this );
+
+        initialize();
         }
 
-    public void setTitles()
+    /*
+    private final int duration = 30; // seconds
+    private final int sampleRate = 8000;
+    private final int numSamples = duration * sampleRate;
+    private final double sample[] = new double[numSamples];
+    private final double freqOfTone = 440; // hz
+    private final byte generatedSnd[] = new byte[2 * numSamples];
+    Handler handler = new Handler();
+    private AudioTrack audioTrack;
+    private boolean play = false;
+    */
+
+    public void initialize()
         {
         tx1.setText("Title 1");
         tx2.setText("Title 2");
         tx3.setText("Title 3");
         tx4.setText("Title 4");
         tx5.setText("Title 5");
+
+        /*audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+                8000, AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT, numSamples,
+                AudioTrack.MODE_STREAM);*/
         }
+
+    @Override
+    protected void onResume()
+        {
+        super.onResume();
+
+        /*
+        // Use a new tread as this can take a while
+        Thread thread = new Thread(new Runnable()
+            {
+            public void run()
+                {
+                genTone();
+                handler.post(new Runnable()
+                    {
+                    public void run()
+                        {
+                        playSound();
+                        }
+                    });
+                }
+            });
+        thread.start();
+        */
+        }
+
+    /*
+    void genTone()
+        {
+        // fill out the array
+        while(play)
+            {
+            for (int i = 0; i < numSamples; ++i)
+                {
+                //  float angular_frequency =
+                sample[i] = Math.sin(2 * Math.PI * i / (sampleRate/freqOfTone));
+                }
+            int idx = 0;
+
+            // convert to 16 bit pcm sound array
+            // assumes the sample buffer is normalised.
+            for (double dVal : sample)
+                {
+                short val = (short) (dVal * 32767);
+                generatedSnd[idx++] = (byte) (val & 0x00ff);
+                generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+                }
+            audioTrack.write(generatedSnd, 0, numSamples);
+            }
+        }
+
+    void playSound()
+        {
+        play = true;
+        audioTrack.play();
+        }
+
+    public void playTone(double freqOfTone, double duration)
+        {
+        // double duration = 1000;                // seconds
+        // double freqOfTone = 1000;           // hz
+        int sampleRate = 8000;              // a number
+
+        double dnumSamples = duration * sampleRate;
+        dnumSamples = Math.ceil(dnumSamples);
+        int numSamples = (int) dnumSamples;
+        double sample[] = new double[numSamples];
+        byte generatedSnd[] = new byte[2 * numSamples];
+
+        for (int i = 0; i < numSamples; ++i)
+            {      // Fill the sample array
+            sample[i] = Math.sin(freqOfTone * 2 * Math.PI * i / (sampleRate));
+            }
+
+        // convert to 16 bit pcm sound array
+        // assumes the sample buffer is normalized.
+        // convert to 16 bit pcm sound array
+        // assumes the sample buffer is normalised.
+        int idx = 0;
+        int i = 0 ;
+
+        int ramp = numSamples / 20 ;                                    // Amplitude ramp as a percent of sample count
+
+        for (i = 0; i< ramp; ++i)
+            {                                     // Ramp amplitude up (to avoid clicks)
+            double dVal = sample[i];
+            // Ramp up to maximum
+            final short val = (short) ((dVal * 32767 * i/ramp));
+            // in 16 bit wav PCM, first byte is the low order byte
+            generatedSnd[idx++] = (byte) (val & 0x00ff);
+            generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+            }
+
+        for (i = i; i< numSamples - ramp; ++i)
+            {                        // Max amplitude for most of the samples
+            double dVal = sample[i];
+            // scale to maximum amplitude
+            final short val = (short) ((dVal * 32767));
+            // in 16 bit wav PCM, first byte is the low order byte
+            generatedSnd[idx++] = (byte) (val & 0x00ff);
+            generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+            }
+
+        for (i = i; i< numSamples; ++i)
+            {                               // Ramp amplitude down
+            double dVal = sample[i];
+            // Ramp down to zero
+            final short val = (short) ((dVal * 32767 * (numSamples-i)/ramp ));
+            // in 16 bit wav PCM, first byte is the low order byte
+            generatedSnd[idx++] = (byte) (val & 0x00ff);
+            generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+            }
+
+        AudioTrack audioTrack = null;                                   // Get audio track
+        try
+            {
+            int bufferSize = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
+            audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+            sampleRate, AudioFormat.CHANNEL_OUT_MONO,
+            AudioFormat.ENCODING_PCM_16BIT, bufferSize,
+            AudioTrack.MODE_STREAM);
+            audioTrack.play();                                          // Play the track
+            audioTrack.write(generatedSnd, 0, generatedSnd.length);     // Load the track
+            }
+        catch (Exception e){ }
+        if (audioTrack != null) audioTrack.release();           // Track play done. Release track.
+        }
+        */
 
     public void onClick(View view)
         {
@@ -81,8 +229,39 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
              * Az ed1-ed5 mezőket (és a tx1-tx5 címkéket is) szabadon használhatjuk
              */
 
+            AudioTrack audioTrack;
+            int sampleRate = 8000;
+            int bufferSize = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
 
+            audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+                    sampleRate, AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT, bufferSize,
+                    AudioTrack.MODE_STREAM);
+            audioTrack.play();                                          // Play the track
 
+            short[] value = new short[5];
+            int i;
+            for (i = 0; i < 32000; i++)
+                {                        // Max amplitude for most of the samples
+                double dVal = Math.sin(440 * 2 * Math.PI * i / (sampleRate));
+                // scale to maximum amplitude
+                value[0] = (short) ((dVal * 32767));
+                // in 16 bit wav PCM, first byte is the low order byte
+                audioTrack.write(value, 0, 1);     // Load the track
+                }
+
+            int ramp = 4000;
+            for (int r = ramp; r >= 0 ; i++, r--)
+                {                               // Ramp amplitude down
+                double dVal = Math.sin(440 * 2 * Math.PI * i / (sampleRate));
+                // Ramp down to zero
+                value[0] = (short) ((dVal * 32767 * r/ramp ));
+                // in 16 bit wav PCM, first byte is the low order byte
+                audioTrack.write(value, 0, 1);     // Load the track
+                }
+
+            audioTrack.stop();
+            audioTrack.release();
 
             /* ********************************************************************/
             }
